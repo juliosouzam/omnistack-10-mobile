@@ -15,6 +15,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 
 import api from './../services/api';
+import { connect, disconnect, subscribeDevs } from './../services/socket';
 
 export default function Main({ navigation }) {
   const [devs, setDevs] = useState([]);
@@ -44,6 +45,30 @@ export default function Main({ navigation }) {
     loadInitialPosition();
   }, []);
 
+  useEffect(() => {
+    subscribeDevs('new-dev', dev => setDevs([...devs, dev]));
+
+    subscribeDevs('update-dev', dev =>
+      setDevs(
+        devs.map(d =>
+          d.github_username === dev.github_username ? { ...dev } : d
+        )
+      )
+    );
+
+    subscribeDevs('delete-dev', dev =>
+      setDevs(devs.filter(d => d._id !== dev._id))
+    );
+  }, [devs]);
+
+  function setupWebsocket() {
+    disconnect();
+
+    const { latitude, longitude } = currentRegion;
+
+    connect(latitude, longitude, techs);
+  }
+
   async function loadDevs() {
     const { latitude, longitude } = currentRegion;
 
@@ -56,6 +81,7 @@ export default function Main({ navigation }) {
     });
 
     setDevs(response.data.devs);
+    setupWebsocket();
   }
 
   function handleRegionChange(region) {
